@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Node / React / Flutter
+node_modules/
+build/
+dist/
+.dart_tool/
+
+# Env & secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Docker
+*.log

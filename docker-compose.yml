@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  module_a:
+    build: ./module_a
+    container_name: crowdshield_module_a
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  module_f:
+    build: ./module_f
+    container_name: crowdshield_module_f
+    ports:
+      - "8006:8006"
+    restart: unless-stopped

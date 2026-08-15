@@ -215,10 +215,20 @@ def analyze_blueprint(image_bgr: np.ndarray, scale_m_per_px: float,
         if zone.is_vip_corridor:
             vip_ids.add(zone.zone_id)
 
+        # Simplified polygon points (NEW -- additive field). Module F1's
+        # crowd simulation needs the zone's actual shape, not just its
+        # centroid, to build real walkable-space geometry. approxPolyDP
+        # reduces point count while preserving the shape, keeping the
+        # payload small.
+        epsilon = 0.01 * cv2.arcLength(zone.contour, True)
+        simplified = cv2.approxPolyDP(zone.contour, epsilon, True)
+        contour_px = [[int(p[0][0]), int(p[0][1])] for p in simplified]
+
         zone_results.append({
             "zone_id": zone.zone_id,
             "area_m2": zone.area_m2,
             "centroid_px": zone.centroid,
+            "contour_px": contour_px,
             "is_chokepoint": zone.is_chokepoint,
             "chokepoint_width_m": zone.chokepoint_width_m,
             "is_vip_corridor": zone.is_vip_corridor,
@@ -236,7 +246,12 @@ def analyze_blueprint(image_bgr: np.ndarray, scale_m_per_px: float,
 
     chokepoints = [z for z in zone_results if z["is_chokepoint"]]
 
+    img_h, img_w = gray.shape
+
     return {
+        "image_width_px": img_w,     # NEW -- lets Module F1 build a matching simulation grid
+        "image_height_px": img_h,    # NEW
+        "scale_m_per_px": scale_m_per_px,  # NEW -- echoed back so downstream modules don't need it re-supplied
         "total_zones": len(zone_results),
         "total_area_m2": round(total_area_m2, 2),
         "chokepoints_detected": len(chokepoints),
