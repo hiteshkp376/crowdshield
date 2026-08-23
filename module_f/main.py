@@ -20,11 +20,21 @@ placement per the workflow.
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from simulation_engine import run_simulation
 
 app = FastAPI(title="CrowdShield — Module F1: 2D Predictive Crowd Simulation")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class TriggerEvent(BaseModel):

@@ -1,0 +1,23 @@
+name: crowdshield_mobile
+description: "CrowdShield — attendee-facing mobile app: venue heatmap, safe-route awareness, SOS, and incident reporting."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  geolocator: ^11.0.0
+  image_picker: ^1.0.7
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

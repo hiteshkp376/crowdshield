@@ -16,11 +16,21 @@ Endpoint:
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from placement_engine import plan_placement, DEFAULT_COVERAGE_RADIUS_M
 
 app = FastAPI(title="CrowdShield — Module B: Sensor & Resource Placement")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class PlanPlacementRequest(BaseModel):

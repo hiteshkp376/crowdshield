@@ -16,6 +16,7 @@ Endpoints:
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from history_db import (
@@ -26,6 +27,15 @@ from weather_client import get_weather_forecast
 from intensity_score import compute_predicted_intensity_score, dynamic_threshold_recalibration
 
 app = FastAPI(title="CrowdShield — Module C: Weather & Organizer History")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Seed illustrative data on startup so the service is demo-ready immediately.
 seed_illustrative_data()

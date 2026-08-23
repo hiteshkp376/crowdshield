@@ -17,6 +17,7 @@ which is the exact contract Module B (sensor placement) and Module F1
 """
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import numpy as np
 import cv2
@@ -24,6 +25,15 @@ import cv2
 from blueprint_pipeline import analyze_blueprint
 
 app = FastAPI(title="CrowdShield — Module A: Blueprint Intelligence")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")

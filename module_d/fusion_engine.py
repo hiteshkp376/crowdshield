@@ -41,6 +41,19 @@ TIER_1_THRESHOLD = 30   # Green -> Yellow
 TIER_2_THRESHOLD = 55   # Yellow -> Red
 TIER_3_THRESHOLD = 75   # Red -> Active
 
+# Real-world crowd density literature (see Module A's Fruin LOS bands,
+# and documented crowd-crush incidents) puts even the deadliest recorded
+# crushes around 8-10 people/m^2 -- density doesn't meaningfully increase
+# beyond that because human bodies physically can't compress further.
+# So density readings far beyond the safe threshold aren't just "risky,"
+# they're direct physical evidence of an active or imminent crush --
+# unlike moderate density (which genuinely can be innocent, e.g. excited
+# fans), extreme density doesn't need a corroborating signal to be
+# believed. This mirrors the project's core principle: false negatives
+# in a safety system are worse than false positives.
+DENSITY_SEVERE_OVERRIDE_RATIO = 4.0   # 4x the dynamic safe threshold
+SEVERE_DENSITY_SCORE_FLOOR = 95.0     # forces Tier 3 regardless of other corroboration
+
 
 @dataclass
 class ZoneFusionInput:
@@ -110,10 +123,22 @@ def fuse_zone_signals(zone_input: ZoneFusionInput) -> ZoneRiskResult:
 
     raw_total = sum(breakdown.values())
 
+    # --- SEVERE DENSITY OVERRIDE: extreme density is unambiguous evidence
+    # on its own, unlike moderate density which needs corroboration ---
+    density_ratio = (
+        zone_input.density_people_per_m2 / zone_input.safe_density_threshold_people_per_m2
+        if zone_input.safe_density_threshold_people_per_m2 > 0 else 0
+    )
+    is_severe_density = density_ratio >= DENSITY_SEVERE_OVERRIDE_RATIO
+
     # --- CROSS-VALIDATION: the brief's key false-positive filter ---
     # Density/flow risk alone (no physical corroboration) is HELD DOWN,
     # even if the raw weighted sum would otherwise cross a tier boundary.
-    has_physical_corroboration = zone_input.thermal_collapse_detected or zone_input.push_wave_detected
+    # Severe density (see override above) counts AS corroboration on its
+    # own -- it doesn't need a push-wave to be believed.
+    has_physical_corroboration = (
+        zone_input.thermal_collapse_detected or zone_input.push_wave_detected or is_severe_density
+    )
     cross_validation_note = "Physical signal corroboration present (thermal collapse and/or push-wave)."
 
     capped_total = raw_total
@@ -134,6 +159,17 @@ def fuse_zone_signals(zone_input: ZoneFusionInput) -> ZoneRiskResult:
             cross_validation_note = "No physical corroboration present, but raw score was already below the Tier 1 ceiling."
 
     final_score = round(min(100.0, capped_total), 1)
+
+    if is_severe_density:
+        final_score = max(final_score, SEVERE_DENSITY_SCORE_FLOOR)
+        cross_validation_note = (
+            f"Density ({zone_input.density_people_per_m2:.1f} people/m^2) is "
+            f"{density_ratio:.1f}x the dynamic safe threshold -- beyond the "
+            f"{DENSITY_SEVERE_OVERRIDE_RATIO}x severe-override point. This exceeds even the "
+            f"densest crowd crushes on record; treated as unambiguous evidence on its own, "
+            f"overriding the cross-validation cap and forcing Tier 3 regardless of other signals "
+            f"(false negatives are worse than false positives in a safety system)."
+        )
 
     if final_score >= TIER_3_THRESHOLD:
         tier = "Tier 3 - Active"

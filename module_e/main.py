@@ -20,6 +20,7 @@ Endpoints:
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from escalation_state_machine import EscalationStateMachine
@@ -30,6 +31,15 @@ from incident_logger import (
 from genai_summary import generate_incident_summary
 
 app = FastAPI(title="CrowdShield — Module E: Tiered Escalation & Human-Confirmed Response")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 _state_machine = EscalationStateMachine()
 

@@ -184,13 +184,46 @@ def run_simulation(blueprint_output: dict, expected_turnout: int | None = None,
 
     n_steps = int(duration_s / DT_S)
 
+    # Precompute zone contours once for the exact-boundary safety clamp
+    # (used every step below). This is the authoritative check -- unlike
+    # a coarse distance-field lookup, cv2.pointPolygonTest against the
+    # real contour is exact, so an agent can never render outside its
+    # actual walkable geometry.
+    zone_contours = [np.array(z["contour_px"], dtype=np.int32) for z in zones]
+
+    def clamp_to_walkable(positions_px_arr, fallback_positions_px_arr):
+        """Reverts any agent whose position lands outside every zone
+        polygon to its previous (known-valid) position."""
+        for i in range(positions_px_arr.shape[0]):
+            pt = (float(positions_px_arr[i, 0]), float(positions_px_arr[i, 1]))
+            inside_any = any(
+                cv2.pointPolygonTest(c, pt, False) >= 0 for c in zone_contours
+            )
+            if not inside_any:
+                positions_px_arr[i] = fallback_positions_px_arr[i]
+        return positions_px_arr
+
     frames = []
     zone_peak_density = {z["zone_id"]: 0.0 for z in zones}
     zone_peak_stress = {z["zone_id"]: 0.0 for z in zones}
     max_panicked_fraction_over_time = 0.0
 
     for step in range(n_steps):
+        prev_positions_px = (sim.state.positions_m / scale_m_per_px).copy()
         sim.step()
+
+        # Exact boundary safety clamp: revert any agent that ended up
+        # outside every zone polygon back to its last valid position.
+        # This is the authoritative fix -- soft repulsion forces reduce
+        # how often this triggers, but this check guarantees it never
+        # renders an agent outside real walkable geometry, regardless of
+        # force-model edge cases.
+        current_positions_px = sim.state.positions_m / scale_m_per_px
+        corrected_px = clamp_to_walkable(current_positions_px.copy(), prev_positions_px)
+        corrected_mismatch = ~np.all(np.isclose(corrected_px, current_positions_px), axis=1)
+        if corrected_mismatch.any():
+            sim.state.positions_m[corrected_mismatch] = corrected_px[corrected_mismatch] * scale_m_per_px
+            sim.state.velocities_mps[corrected_mismatch] = 0.0
 
         density_per_agent = sim.current_density_per_agent() * people_per_agent
         stress = sim.state.stress
